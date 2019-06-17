@@ -2,6 +2,8 @@
 secu_config/
 .vscode/
 *.exe
+*.vcxproj*
+*.sln
 
 # Created by https://www.gitignore.io/api/osx,node,linux,vagrant,windows
 # and https://github.com/github/gitignore
@@ -154,9 +156,9 @@ $RECYCLE.BIN/
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
-x64/
-x86/
-bld/
+[Xx]64/
+[Xx]86/
+[Bb]ld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
