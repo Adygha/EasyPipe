@@ -1,6 +1,4 @@
 #include "AbsEasyPipe.h"
-#include <winnt.h>
-#include <WinBase.h>
 #include <cstring>
 #include <stdexcept>
 using std::runtime_error;
@@ -10,7 +8,7 @@ namespace ez {
 	const char* const AbsEasyPipe::_PIPE_READ_SERVER_PRE = "\\\\.\\pipe\\Upload"; // Server pipe pre-name
 	const char* const AbsEasyPipe::_PIPE_READ_CLIENT_PRE = "\\\\.\\pipe\\Download"; // Client pipe pre-name
 	const DWORD AbsEasyPipe::_PIPE_SERVER_MODE = PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT; // The actual pipes' mode
-	const DWORD AbsEasyPipe::_BUF_SIZE_READ = 1024;
+	//const DWORD AbsEasyPipe::_BUF_SIZE_READ = 1024;
 	const DWORD AbsEasyPipe::_BUF_SIZE_PIPE = AbsEasyPipe::_BUF_SIZE_READ * 16;
 	const DWORD AbsEasyPipe::_PIPE_TIMEOUT = 1000; // Pipe's default timeout.
 	const char* const AbsEasyPipe::_ERR_READ_STRCPY = "Error whie copying string data. Please check that none of the provided strings are 'NULL'.";
@@ -22,8 +20,9 @@ namespace ez {
 #pragma endregion
 
 	AbsEasyPipe::AbsEasyPipe(const char* pipName, PipeStatus pipeStatus) :
-		_mePipeName(new char[strlen(pipeStatus & PipeStatus::SERVER ? AbsEasyPipe::_PIPE_READ_SERVER_PRE : AbsEasyPipe::_PIPE_READ_CLIENT_PRE) + strlen(pipName) + 1]),
-		_meStat(pipeStatus) {
+		_mePipeHndl(nullptr),
+		_meStat(pipeStatus),
+		_mePipeName(new char[strlen(pipeStatus & PipeStatus::SERVER ? AbsEasyPipe::_PIPE_READ_SERVER_PRE : AbsEasyPipe::_PIPE_READ_CLIENT_PRE) + strlen(pipName) + 1]) {
 
 		size_t tmpLen = strlen(this->_meStat & PipeStatus::SERVER ? AbsEasyPipe::_PIPE_READ_SERVER_PRE : AbsEasyPipe::_PIPE_READ_CLIENT_PRE) + strlen(pipName) + 1;
 		if (strcpy_s(this->_mePipeName, tmpLen, this->_meStat & PipeStatus::SERVER ? AbsEasyPipe::_PIPE_READ_SERVER_PRE : AbsEasyPipe::_PIPE_READ_CLIENT_PRE))
@@ -47,14 +46,16 @@ namespace ez {
 	}
 
 	AbsEasyPipe::~AbsEasyPipe() {
+		if (this->_meStat & PipeStatus::OPEN)
+			this->close();
 		delete[] this->_mePipeName;
 		//this->_mePipeName = nullptr;
 	}
 
 	ConnectResult AbsEasyPipe::connect() {
-		if (this->_meStat & PipeStatus::OPEN != PipeStatus::OPEN)
+		if ((this->_meStat & PipeStatus::OPEN) != PipeStatus::OPEN)
 			throw runtime_error(AbsEasyPipe::_ERR_ALREADY_CLOSED);
-		if (this->_meStat & PipeStatus::CONNECTED == PipeStatus::CONNECTED)
+		if ((this->_meStat & PipeStatus::CONNECTED) == PipeStatus::CONNECTED)
 			throw runtime_error(AbsEasyPipe::_ERR_ALREADY_CONN);
 		if (this->_meStat & PipeStatus::SERVER) {
 			if (!ConnectNamedPipe(this->_mePipeHndl, nullptr))
@@ -73,17 +74,32 @@ namespace ez {
 			}
 		}
 		this->_meStat |= PipeStatus::CONNECT_STATE;
-		return ConnectResult::CONNECTED;
+		return ConnectResult::CONN_SUCC;
 	}
 
 	void AbsEasyPipe::disconnect() {
-		if (this->_meStat & PipeStatus::CONNECTED != PipeStatus::CONNECTED)
+		if ((this->_meStat & PipeStatus::CONNECTED) != PipeStatus::CONNECTED)
 			throw runtime_error(AbsEasyPipe::_ERR_ALREADY_DISCONN);
-		if (this->_meStat & PipeStatus::BUSY != PipeStatus::BUSY)
+		if ((this->_meStat & PipeStatus::BUSY) != PipeStatus::BUSY)
 			this->stopWorking();
+		if (this->_meStat & PipeStatus::SERVER) {
+			DisconnectNamedPipe(this->_mePipeHndl);
+		} else if (this->_mePipeHndl != INVALID_HANDLE_VALUE) {
+			CloseHandle(this->_mePipeHndl);
+			this->_mePipeHndl = INVALID_HANDLE_VALUE;
+		}
+		this->_meStat &= ~PipeStatus::CONNECT_STATE;
 	}
 
 	void AbsEasyPipe::close() {
-
+		if ((this->_meStat & PipeStatus::OPEN) == 0)
+			throw runtime_error(AbsEasyPipe::_ERR_ALREADY_CLOSED);
+		if ((this->_meStat & PipeStatus::CONNECTED) != PipeStatus::CONNECTED)
+			this->disconnect();
+		if (this->_meStat & PipeStatus::SERVER && this->_mePipeHndl != INVALID_HANDLE_VALUE) {
+			CloseHandle(this->_mePipeHndl);
+			this->_mePipeHndl = INVALID_HANDLE_VALUE;
+		}
+		this->_meStat &= ~PipeStatus::OPEN;
 	}
 }

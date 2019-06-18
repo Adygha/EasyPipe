@@ -10,34 +10,27 @@
 #define EASYPIPE __declspec(dllimport)
 #endif
 
-#include <Windows.h>
+//#include <Windows.h>
 #include <vector>
 
 using std::vector;
 
 namespace ez {
-	enum ConnectResult : char { NO_PIPE, CONN_ERROR, CONN_TIMEOUT, CONNECTED };
-
-	class EASYPIPE EasyReadPipe {
+	class EASYPIPE EasyReadPipe : public AbsEasyPipe {
 	public:
 		EasyReadPipe(const char* pipName, bool isServer);
-		~EasyReadPipe();
+		virtual ~EasyReadPipe() override;
 
-		void addObserver(AbsEasyReadPipeObserver* newObserver);
-		ConnectResult connect();
-		void startListening();
-		void stopListening();
-		void disconnect();
-		void close();
+		virtual void addObserver(AbsEasyReadPipeObserver* newObserver);
+		virtual void startListening();
+		virtual void stopListening();
 
 	private:
-		char* _mePipeName;
-		bool _meIsServer;
-		HANDLE _mePipeHndl;
-		bool _meIsConnected;
-		bool _meIsListening;
-		bool _meIsClosed;
 		vector<AbsEasyReadPipeObserver*>* _meObs;
 		HANDLE _meReadThrdHdl;
+
+		static const char* const _ERR_ALREADY_LSN;
+
+		virtual void stopWorking() override;
 	};
 }

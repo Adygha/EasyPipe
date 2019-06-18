@@ -1,7 +1,19 @@
 #pragma once
 
+#ifdef EASYPIPE
+#undef EASYPIPE
+#endif // EASYPIPE
+
+#ifdef EASYPIPE_EXPORTS
+#define EASYPIPE __declspec(dllexport)
+#else
+#define EASYPIPE __declspec(dllimport)
+#endif
+
+#include <Windows.h>
+
 namespace ez {
-	enum ConnectResult : char { UNAVAIL_PIPE, CONN_ERROR, CONN_TIMEOUT, CONNECTED };
+	enum ConnectResult : char { UNAVAIL_PIPE, CONN_ERROR, CONN_TIMEOUT, CONN_SUCC };
 
 	enum PipeStatus : char {
 		CLIENT,
@@ -14,15 +26,15 @@ namespace ez {
 		BUSY = CONNECTED | BUSY_STATE
 	};
 
-	//inline PipeStatus operator~ (PipeStatus a) { return (PipeStatus)~a; }
-	inline PipeStatus operator| (PipeStatus a, PipeStatus b) { return (PipeStatus)(a | b); }
-	//inline PipeStatus operator& (PipeStatus a, PipeStatus b) { return (PipeStatus)(a & b); }
-	//inline PipeStatus operator^ (PipeStatus a, PipeStatus b) { return (PipeStatus)(a ^ b); }
-	inline PipeStatus& operator|= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)(a |= b); }
-	//inline PipeStatus& operator&= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)(a &= b); }
-	//inline PipeStatus& operator^= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)(a ^= b); }
+	inline PipeStatus operator~ (PipeStatus a) { return (PipeStatus)(char)a; }
+	inline PipeStatus operator| (PipeStatus a, PipeStatus b) { return (PipeStatus)((char)a | (char)b); }
+	//inline PipeStatus operator& (PipeStatus a, PipeStatus b) { return (PipeStatus)((char)a & (char)b); }
+	//inline PipeStatus operator^ (PipeStatus a, PipeStatus b) { return (PipeStatus)((char)a ^ (char)b); }
+	inline PipeStatus& operator|= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)((char&)a |= (char)b); }
+	inline PipeStatus& operator&= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)((char&)a &= (char)b); }
+	//inline PipeStatus& operator^= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)((char&)a ^= (char)b); }
 
-	class AbsEasyPipe {
+	class EASYPIPE AbsEasyPipe {
 	public:
 		AbsEasyPipe(const char* pipName, PipeStatus pipeStatus);
 		virtual ~AbsEasyPipe();
@@ -31,22 +43,25 @@ namespace ez {
 		virtual void disconnect() final;
 		virtual void close() final;
 
+	protected:
+		HANDLE _mePipeHndl;
+		PipeStatus _meStat;
+
+		static const DWORD _BUF_SIZE_READ = 1024; // Size of read buffer
+		static const char* const _ERR_ALREADY_DISCONN;
+
 	private:
 		char* _mePipeName;
-		PipeStatus _meStat;
-		HANDLE _mePipeHndl;
 
 		static const char* const _PIPE_READ_SERVER_PRE; // Server pipe pre-name
 		static const char* const _PIPE_READ_CLIENT_PRE; // Client pipe pre-name
 		static const DWORD _PIPE_SERVER_MODE; // The actual pipes' mode
-		static const DWORD _BUF_SIZE_READ; // Size of read buffer
 		static const DWORD _BUF_SIZE_PIPE; // Size of pipe's buffers
 		static const DWORD _PIPE_TIMEOUT; // Pipe's default timeout.
 		static const char* const _ERR_READ_STRCPY;
 		static const char* const _ERR_READ_STRCAT;
 		static const char* const _ERR_PIPE_CREATE;
 		static const char* const _ERR_ALREADY_CONN;
-		static const char* const _ERR_ALREADY_DISCONN;
 		static const char* const _ERR_ALREADY_CLOSED;
 
 		//virtual void startWorking() = 0;
