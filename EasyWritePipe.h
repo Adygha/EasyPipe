@@ -10,26 +10,21 @@
 #define EASYPIPE __declspec(dllimport)
 #endif
 
-#include <Windows.h>
-#include <thread>
-
-using std::thread;
+#include"AbsEasyPipe.h"
 
 namespace ez {
-	class EASYPIPE EasyWritePipe {
+	class EASYPIPE EasyWritePipe : public AbsEasyPipe {
 	public:
 		EasyWritePipe(const char* pipName, bool isServer);
 		~EasyWritePipe();
 
 		void sendMessage(const char* theMsg);
-		//void startListening();
-		//void stopListening();
 
 	private:
-		char* _mePipeName;
-		bool _meIsServer;
-		HANDLE _mePipeHndl;
-		bool _meIsConnected;
-		thread* _meConnThrd;
+		HANDLE _meWriteThrdHdl;
+
+		static const char* const _ERR_ALREADY_WRITE;
+
+		virtual void stopWorking();
 	};
 }

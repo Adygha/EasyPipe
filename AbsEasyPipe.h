@@ -11,11 +11,15 @@
 #endif
 
 #include <Windows.h>
+#include <thread>
+#include <atomic>
+using std::thread;
+using std::atomic;
 
 namespace ez {
-	enum ConnectResult : char { UNAVAIL_PIPE, CONN_ERROR, CONN_TIMEOUT, CONN_SUCC };
+	enum class ConnectResult : char { UNAVAIL_PIPE, CONN_ERROR, CONN_TIMEOUT, CONN_NONBLOCK_SUCC, CONN_SUCC };
 
-	enum PipeStatus : char {
+	enum class PipeStatus : char {
 		CLIENT,
 		SERVER,
 		WRITE,
@@ -26,12 +30,12 @@ namespace ez {
 		BUSY = CONNECTED | BUSY_STATE
 	};
 
-	inline PipeStatus operator~ (PipeStatus a) { return (PipeStatus)(char)a; }
+	inline PipeStatus operator~ (PipeStatus a) { return (PipeStatus)~(char)a; }
 	inline PipeStatus operator| (PipeStatus a, PipeStatus b) { return (PipeStatus)((char)a | (char)b); }
-	//inline PipeStatus operator& (PipeStatus a, PipeStatus b) { return (PipeStatus)((char)a & (char)b); }
+	inline PipeStatus operator& (PipeStatus a, PipeStatus b) { return (PipeStatus)((char)a & (char)b); }
 	//inline PipeStatus operator^ (PipeStatus a, PipeStatus b) { return (PipeStatus)((char)a ^ (char)b); }
-	inline PipeStatus& operator|= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)((char&)a |= (char)b); }
-	inline PipeStatus& operator&= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)((char&)a &= (char)b); }
+	//inline PipeStatus& operator|= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)((char&)a |= (char)b); }
+	//inline PipeStatus& operator&= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)((char&)a &= (char)b); }
 	//inline PipeStatus& operator^= (PipeStatus& a, PipeStatus b) { return (PipeStatus&)((char&)a ^= (char)b); }
 
 	class EASYPIPE AbsEasyPipe {
@@ -45,17 +49,18 @@ namespace ez {
 
 	protected:
 		HANDLE _mePipeHndl;
-		PipeStatus _meStat;
+		atomic<PipeStatus> *_meStat;
 
 		static const DWORD _BUF_SIZE_READ = 1024; // Size of read buffer
 		static const char* const _ERR_ALREADY_DISCONN;
 
 	private:
+		thread* _meConnThrd;
 		char* _mePipeName;
 
-		static const char* const _PIPE_READ_SERVER_PRE; // Server pipe pre-name
-		static const char* const _PIPE_READ_CLIENT_PRE; // Client pipe pre-name
-		static const DWORD _PIPE_SERVER_MODE; // The actual pipes' mode
+		static const char* const _PIPE_DOWN_PRE; // Server pipe pre-name
+		static const char* const _PIPE_UP_PRE; // Client pipe pre-name
+		static const DWORD _PIPE_MODE; // The actual pipes' mode
 		static const DWORD _BUF_SIZE_PIPE; // Size of pipe's buffers
 		static const DWORD _PIPE_TIMEOUT; // Pipe's default timeout.
 		static const char* const _ERR_READ_STRCPY;
